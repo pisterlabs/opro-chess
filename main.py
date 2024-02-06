@@ -1,15 +1,20 @@
 from Game import ChessGame
+import json
 import random
+import pygame
+import sys
 
 if __name__ == "__main__":
+  data = json.loads(open("PGNs/fens.json", "r").read())
+
   # initial prompt
   prompt = "Given a FEN string return the next best chess move in UCI format"
 
   total_games = 1
 
-  for games in range(total_games):
-    random_fen = ChessGame.get_random_fen()
-    game = ChessGame(random_fen)
+  for game_idx in range(total_games):
+    fen = data["fens"][game_idx]
+    game = ChessGame(fen)
 
     steps = 1
     batch = 100
@@ -46,3 +51,5 @@ if __name__ == "__main__":
       print("--------------------\n")
 
       prompt = new_prompt
+
+  print("done")
