@@ -3,6 +3,33 @@ import json
 import random
 import pygame
 import sys
+import cohere
+import re
+
+
+def predict_move(input_prompt, fen_string):
+  return_uci = ""
+  co = cohere.Client("2ZXcGcEyP7s2SBm8gunpe3HDRQQPXSF6hbDTl5jS")
+  prompt = f"{input_prompt} {'with the fen string: '} {fen_string}"
+  response = co.generate(prompt = prompt)
+  # print("response text: ", response[0].text)
+
+  uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
+  uci_matches = re.findall(uci_pattern, response[0].text)
+
+  if uci_matches:
+    first_uci_match = uci_matches[0]
+    # print("first match found:", first_uci_match)
+    return_uci = first_uci_match
+  else:
+    print("No UCI match found")
+
+  # Iterate over the matches and print each one
+  for matched_text in uci_matches:
+      print("Match found:", matched_text)
+  
+  print("return uci", return_uci)
+  return return_uci
 
 if __name__ == "__main__":
   data = json.loads(open("PGNs/fens.json", "r").read())
@@ -25,6 +52,8 @@ if __name__ == "__main__":
 
       for idx in range(batch):
         # predict move with a LLM using prompt and board fen. Validate move, then play it
+        next_move = predict_move(prompt, fen)
+
         move = random.choice(list(game.get_board().legal_moves)).uci()
         # print(move)
 
