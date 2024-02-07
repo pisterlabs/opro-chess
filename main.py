@@ -9,7 +9,6 @@ import re
 
 def predict_move(input_prompt, fen_string):
   return_uci = ""
-  co = cohere.Client("2ZXcGcEyP7s2SBm8gunpe3HDRQQPXSF6hbDTl5jS")
   prompt = f"{input_prompt} {'with the fen string: '} {fen_string}"
   response = co.generate(prompt = prompt)
   # print("response text: ", response[0].text)
