@@ -9,6 +9,7 @@ import re
 
 def predict_move(input_prompt, fen_string):
   return_uci = ""
+  co = cohere.Client("2ZXcGcEyP7s2SBm8gunpe3HDRQQPXSF6hbDTl5jS")
   prompt = f"{input_prompt} {'with the fen string: '} {fen_string}"
   response = co.generate(prompt = prompt)
   # print("response text: ", response[0].text)
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     game = ChessGame(fen)
 
     steps = 1
-    batch = 100
+    batch = 1
     show_interval = 1000
 
     for step in range(steps):
@@ -51,10 +52,11 @@ if __name__ == "__main__":
 
       for idx in range(batch):
         # predict move with a LLM using prompt and board fen. Validate move, then play it
-        next_move = predict_move(prompt, fen)
+        # move = random.choice(list(game.get_board().legal_moves)).uci()
 
-        move = random.choice(list(game.get_board().legal_moves)).uci()
-        # print(move)
+        move = predict_move(prompt, fen)
+        
+        print(move)
 
         # Show the board at these intervals, wait for input to continue
         if (idx+1) % show_interval == 0:
