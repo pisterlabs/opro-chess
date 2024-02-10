@@ -1,2 +1,4 @@
 chess==1.10.0
 chess-board==0.4.1
+cohere==4.46
+python-dotenv==1.0.1
