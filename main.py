@@ -3,21 +3,25 @@ import json
 import os
 import random
 from dotenv import load_dotenv
-import cohere
 import re
+import cohere
+from openai import OpenAI
 
 def init_llm():
   load_dotenv()
-  cohere_llm = cohere.Client(os.getenv("COHERE_API_KEY"))
+  cohere_llm = cohere.Client(api_key=os.getenv("COHERE_API_KEY"))
+  openai_llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-  return cohere_llm
+  return cohere_llm, openai_llm
 
-def predict_move(input_prompt, fen_string, llm):
+def predict_move_cohere(input_prompt, fen_string, llm):
   return_uci = ""
   
   prompt = f"{input_prompt} {' fen string: '} {fen_string}"
+
   response = llm.generate(prompt = prompt)
-  # print("response text: ", response[0].text)
+
+  print("response text: ", response[0].text)
 
   uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
   uci_matches = re.findall(uci_pattern, response[0].text)
@@ -27,20 +31,43 @@ def predict_move(input_prompt, fen_string, llm):
     return_uci = first_uci_match
   else:
     print("No UCI match found")
-
-  # Iterate over the matches and print each one
-  # for matched_text in uci_matches:
-  #     print("Match found:", matched_text)
   
+  return return_uci
+
+def predict_move_openai(input_prompt, fen_string, llm):
+  return_uci = ""
+  
+  prompt = f"{input_prompt} {' fen string: '} {fen_string}"
+
+  completion = llm.chat.completions.create(
+    model="gpt-3.5-turbo",
+    messages=[
+      {"role": "system", "content": prompt},
+    ]
+  )
+
+  response = completion.choices[0].message.content
+
+  print("response text: ", response)
+
+  uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
+  uci_matches = re.findall(uci_pattern, response)
+
+  if uci_matches:
+    first_uci_match = uci_matches[0]
+    return_uci = first_uci_match
+  else:
+    print("No UCI match found")
+
   return return_uci
 
 if __name__ == "__main__":
   data = json.loads(open("PGNs/fens.json", "r").read())
 
-  cohere_llm = init_llm()
+  cohere_llm, openai_llm = init_llm()
 
   # initial prompt
-  prompt = "Given a FEN string and legal moves, return the next best move among the given moves in UCI format. "
+  prompt = "Given a FEN string and legal moves, only return the next best move among the given moves in UCI format and nothing else. "
 
   total_games = 1
 
@@ -60,9 +87,11 @@ if __name__ == "__main__":
       for idx in range(batch):
         # predict move with a LLM using prompt and board fen. Validate move, then play it
 
-        # move = random.choice(list(game.get_board().legal_moves)).uci()
         prompt += "moves: " + " ".join([move.uci() for move in game.get_board().legal_moves])
-        move = predict_move(prompt, fen, cohere_llm)
+
+        # move = random.choice(list(game.get_board().legal_moves)).uci()
+        # move = predict_move_cohere(prompt, fen, cohere_llm)
+        move = predict_move_openai(prompt, fen, openai_llm)
         
         print("move:", move)
 
