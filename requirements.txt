@@ -1,4 +1,5 @@
 chess==1.10.0
 chess-board==0.4.1
 cohere==4.46
+openai==1.12.0
 python-dotenv==1.0.1
