@@ -34,37 +34,51 @@ def predict_move_cohere(input_prompt, fen_string, llm):
   
   return return_uci
 
-def predict_move_openai(input_prompt, fen_string, llm):
-  return_uci = ""
-  
+def predict_move_openai(input_prompt, fen_string, llm, num):
   prompt = f"{input_prompt} {' fen string: '} {fen_string}"
 
   completion = llm.chat.completions.create(
     model="gpt-3.5-turbo",
     messages=[
       {"role": "system", "content": prompt},
-    ]
+    ],
+    n=num
   )
 
-  response = completion.choices[0].message.content
+  responses = []
 
-  # print("move response: ", response)
+  for choice in completion.choices:
+    responses.append(choice.message.content)
+
+  # print("move responses: ", responses)
 
   uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
-  uci_matches = re.findall(uci_pattern, response)
 
-  if uci_matches:
-    first_uci_match = uci_matches[0]
-    return_uci = first_uci_match
-  else:
-    print("No UCI match found")
+  return_ucis = []
 
-  return return_uci
+  for resp in responses:
+    uci_matches = re.findall(uci_pattern, resp)
 
-def get_prompt_openai(current_prompt, avg_score, llm):
-  return_str = current_prompt
-  
-  prompt = f"Original prompt: ' {current_prompt} ' Score: {avg_score}. The given prompt predicts the best chess move given a chess board. It's score is given. suggest just an alternative prompt without scores or moves in the format of \"Proposed prompt: \" that will achieve a higher score." 
+    if uci_matches:
+      first_uci_match = uci_matches[0]
+      return_ucis.append(first_uci_match)
+    else:
+      print("No UCI match found")
+
+  return return_ucis
+
+def get_prompt_openai(prompt_score_list, llm):
+  prompt_list = ""
+
+  for idx, prompts in enumerate(prompt_score_list[:-6:-1]):
+    prompt_list += "\nPrompt " + str(idx+1) + ":\n" + prompts[0] + "\nScore: " + str(prompts[1]) + "\n"
+
+  # https://arxiv.org/pdf/2309.03409.pdf
+  prompt = f"""Your task is to generate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. Below are some prompts and the score the prompt achieved.
+  {prompt_list}\nGenerate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. the prompt should begin with "Prompt:" and should not include anything else.
+  """
+
+  # print(prompt)
 
   completion = llm.chat.completions.create(
     model="gpt-3.5-turbo",
@@ -74,7 +88,7 @@ def get_prompt_openai(current_prompt, avg_score, llm):
   )
 
   response = completion.choices[0].message.content
-  return_str = [x for x in response.split('"')[::-1] if len(x) > 0][0]
+  return_str = [x for x in response.split(':')[::-1] if len(x) > 4][0]
 
   # print("new prompt response: ", return_str)
 
@@ -84,6 +98,9 @@ if __name__ == "__main__":
   data = json.loads(open("PGNs/fens.json", "r").read())
 
   cohere_llm, openai_llm = init_llm()
+
+  # prompt list, only include recent 5 prompts and scores
+  prompt_score_list = []
 
   # initial prompt
   prompt = "Given a FEN string and legal moves, only return the next best move among the given moves in UCI format and nothing else. "
@@ -95,7 +112,7 @@ if __name__ == "__main__":
     game = ChessGame(fen)
 
     steps = 2
-    batch = 5
+    batch = 2
     show_interval = 1000
 
     print("fen:", game.get_board().fen())
@@ -106,6 +123,8 @@ if __name__ == "__main__":
 
       original_prompt = prompt
 
+      num = 5
+
       for idx in range(batch):
         # predict move with a LLM using prompt and board fen. Validate move, then play it
 
@@ -113,32 +132,40 @@ if __name__ == "__main__":
 
         # move = random.choice(list(game.get_board().legal_moves)).uci()
         # move = predict_move_cohere(prompt, fen, cohere_llm)
-        move = predict_move_openai(prompt, fen, openai_llm)
-        
-        print("move:", move)
+        moves = predict_move_openai(prompt, fen, openai_llm, num)
 
-        if not game.is_valid(move):
-          total_score += -10000000
-          continue
+        for move in moves:
+          print("move:", move)
 
-        # Show the board at these intervals, wait for input to continue
-        if (idx+1) % show_interval == 0:
-          game.play_move(move, show=True)
+          if not game.is_valid(move):
+            total_score += -10000000
+            continue
 
-        # Play these moves quickly without showing the board
-        else:
-          game.play_move(move)
+          # Show the board at these intervals, wait for input to continue
+          if (idx+1) % show_interval == 0:
+            game.play_move(move, show=True)
 
-        total_score += game.get_score()
+          # Play these moves quickly without showing the board
+          else:
+            game.play_move(move)
 
-        game.get_board().pop()
+          total_score += game.get_score()
 
-      avg_score = total_score / batch
+          game.get_board().pop()
+
+        prompt = original_prompt
+
+      avg_score = total_score / (batch * num)
 
       # get new prompt from LLM using current prompt and avg score
 
+      prompt_score_list.append([original_prompt, avg_score])
+
+      if(len(prompt_score_list) > 5):
+        prompt_score_list = prompt_score_list[-5:]
+
       # new_prompt = "Given a FEN string return the next best chess move in UCI format"
-      new_prompt = get_prompt_openai(original_prompt, avg_score, openai_llm)
+      new_prompt = get_prompt_openai(prompt_score_list, openai_llm)
 
       print(f"Current Prompt: {original_prompt}")
       print(f"Average score: {avg_score}")
