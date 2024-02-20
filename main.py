@@ -7,171 +7,184 @@ import re
 import cohere
 from openai import OpenAI
 
-def init_llm():
-  load_dotenv()
-  cohere_llm = cohere.Client(api_key=os.getenv("COHERE_API_KEY"))
-  openai_llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-  return cohere_llm, openai_llm
+def init_llm():
+    load_dotenv()
+    cohere_llm = cohere.Client(api_key=os.getenv("COHERE_API_KEY"))
+    openai_llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+    return cohere_llm, openai_llm
+
 
 def predict_move_cohere(input_prompt, fen_string, llm):
-  return_uci = ""
-  
-  prompt = f"{input_prompt} {' fen string: '} {fen_string}"
+    return_uci = ""
 
-  response = llm.generate(prompt = prompt)
+    prompt = f"{input_prompt} {' fen string: '} {fen_string}"
 
-  # print("move response: ", response[0].text)
+    response = llm.generate(prompt=prompt)
 
-  uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
-  uci_matches = re.findall(uci_pattern, response[0].text)
+    # print("move response: ", response[0].text)
 
-  if uci_matches:
-    first_uci_match = uci_matches[0]
-    return_uci = first_uci_match
-  else:
-    print("No UCI match found")
-  
-  return return_uci
-
-def predict_move_openai(input_prompt, fen_string, llm, num):
-  prompt = f"{input_prompt} {' fen string: '} {fen_string}"
-
-  completion = llm.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[
-      {"role": "system", "content": prompt},
-    ],
-    n=num
-  )
-
-  responses = []
-
-  for choice in completion.choices:
-    responses.append(choice.message.content)
-
-  # print("move responses: ", responses)
-
-  uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
-
-  return_ucis = []
-
-  for resp in responses:
-    uci_matches = re.findall(uci_pattern, resp)
+    uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
+    uci_matches = re.findall(uci_pattern, response[0].text)
 
     if uci_matches:
-      first_uci_match = uci_matches[0]
-      return_ucis.append(first_uci_match)
+        first_uci_match = uci_matches[0]
+        return_uci = first_uci_match
     else:
-      print("No UCI match found")
+        print("No UCI match found")
 
-  return return_ucis
+    return return_uci
+
+
+def predict_move_openai(input_prompt, fen_string, llm, num):
+    prompt = f"{input_prompt} {' fen string: '} {fen_string}"
+
+    completion = llm.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
+        n=num,
+    )
+
+    responses = []
+
+    for choice in completion.choices:
+        responses.append(choice.message.content)
+
+    # print("move responses: ", responses)
+
+    uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
+
+    return_ucis = []
+
+    for resp in responses:
+        uci_matches = re.findall(uci_pattern, resp)
+
+        if uci_matches:
+            first_uci_match = uci_matches[0]
+            return_ucis.append(first_uci_match)
+        else:
+            print("No UCI match found")
+
+    return return_ucis
+
 
 def get_prompt_openai(prompt_score_list, llm):
-  prompt_list = ""
+    prompt_list = ""
 
-  for idx, prompts in enumerate(prompt_score_list[:-6:-1]):
-    prompt_list += "\nPrompt " + str(idx+1) + ":\n" + prompts[0] + "\nScore: " + str(prompts[1]) + "\n"
+    for idx, prompts in enumerate(prompt_score_list[:-6:-1]):
+        prompt_list += (
+            "\nPrompt "
+            + str(idx + 1)
+            + ":\n"
+            + prompts[0]
+            + "\nScore: "
+            + str(prompts[1])
+            + "\n"
+        )
 
-  # https://arxiv.org/pdf/2309.03409.pdf
-  prompt = f"""Your task is to generate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. Below are some prompts and the score the prompt achieved.
+    # https://arxiv.org/pdf/2309.03409.pdf
+    prompt = f"""Your task is to generate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. Below are some prompts and the score the prompt achieved.
   {prompt_list}\nGenerate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. the prompt should begin with "Prompt:" and should not include anything else.
   """
 
-  # print(prompt)
+    # print(prompt)
 
-  completion = llm.chat.completions.create(
-    model="gpt-3.5-turbo",
-    messages=[
-      {"role": "system", "content": prompt},
-    ]
-  )
+    completion = llm.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
+    )
 
-  response = completion.choices[0].message.content
-  return_str = [x for x in response.split(':')[::-1] if len(x) > 4][0]
+    response = completion.choices[0].message.content
+    return_str = [x for x in response.split(":")[::-1] if len(x) > 4][0]
 
-  # print("new prompt response: ", return_str)
+    # print("new prompt response: ", return_str)
 
-  return return_str
+    return return_str
+
 
 if __name__ == "__main__":
-  data = json.loads(open("PGNs/fens.json", "r").read())
+    data = json.loads(open("PGNs/fens.json", "r").read())
 
-  cohere_llm, openai_llm = init_llm()
+    cohere_llm, openai_llm = init_llm()
 
-  # prompt list, only include recent 5 prompts and scores
-  prompt_score_list = []
+    # prompt list, only include recent 5 prompts and scores
+    prompt_score_list = []
 
-  # initial prompt
-  prompt = "Given a FEN string and legal moves, only return the next best move among the given moves in UCI format and nothing else. "
+    # initial prompt
+    prompt = "Given a FEN string and legal moves, only return the next best move among the given moves in UCI format and nothing else. "
 
-  total_games = 1
-
-  for game_idx in range(total_games):
-    fen = data["fens"][game_idx]
-    game = ChessGame(fen)
-
-    steps = 2
-    batch = 2
     show_interval = 1000
-
-    print("fen:", game.get_board().fen())
-    print()
+    steps = 2
+    total_games = 2
+    batch = 2
+    num = 5
 
     for step in range(steps):
-      total_score = 0
+        original_prompt = prompt
 
-      original_prompt = prompt
+        for game_idx in range(total_games):
+            fen = data["fens"][game_idx]
+            game = ChessGame(fen)
 
-      num = 5
+            print("fen:", game.get_board().fen())
+            print()
 
-      for idx in range(batch):
-        # predict move with a LLM using prompt and board fen. Validate move, then play it
+            total_score = 0
 
-        prompt += "moves: " + " ".join([move.uci() for move in game.get_board().legal_moves])
+            for idx in range(batch):
+                # predict move with a LLM using prompt and board fen. Validate move, then play it
 
-        # move = random.choice(list(game.get_board().legal_moves)).uci()
-        # move = predict_move_cohere(prompt, fen, cohere_llm)
-        moves = predict_move_openai(prompt, fen, openai_llm, num)
+                prompt += "moves: " + " ".join(
+                    [move.uci() for move in game.get_board().legal_moves]
+                )
 
-        for move in moves:
-          print("move:", move)
+                # move = random.choice(list(game.get_board().legal_moves)).uci()
+                # move = predict_move_cohere(prompt, fen, cohere_llm)
+                moves = predict_move_openai(prompt, fen, openai_llm, num)
 
-          if not game.is_valid(move):
-            total_score += -10000000
-            continue
+                for move in moves:
+                    print("move:", move)
 
-          # Show the board at these intervals, wait for input to continue
-          if (idx+1) % show_interval == 0:
-            game.play_move(move, show=True)
+                    if not game.is_valid(move):
+                        total_score += -10000000
+                        continue
 
-          # Play these moves quickly without showing the board
-          else:
-            game.play_move(move)
+                    # Show the board at these intervals, wait for input to continue
+                    if (idx + 1) % show_interval == 0:
+                        game.play_move(move, show=True)
 
-          total_score += game.get_score()
+                    # Play these moves quickly without showing the board
+                    else:
+                        game.play_move(move)
 
-          game.get_board().pop()
+                    total_score += game.get_score()
 
-        prompt = original_prompt
+                    game.get_board().pop()
 
-      avg_score = total_score / (batch * num)
+                prompt = original_prompt
 
-      # get new prompt from LLM using current prompt and avg score
+        avg_score = total_score / (total_games * batch * num)
 
-      prompt_score_list.append([original_prompt, avg_score])
+        # get new prompt from LLM using current prompt and avg score
 
-      if(len(prompt_score_list) > 5):
-        prompt_score_list = prompt_score_list[-5:]
+        prompt_score_list.append([original_prompt, avg_score])
 
-      # new_prompt = "Given a FEN string return the next best chess move in UCI format"
-      new_prompt = get_prompt_openai(prompt_score_list, openai_llm)
+        if len(prompt_score_list) > 5:
+            prompt_score_list = prompt_score_list[-5:]
 
-      print(f"Current Prompt: {original_prompt}")
-      print(f"Average score: {avg_score}")
-      print(f"New Prompt: {new_prompt}")
-      print("--------------------\n")
+        # new_prompt = "Given a FEN string return the next best chess move in UCI format"
+        new_prompt = get_prompt_openai(prompt_score_list, openai_llm)
 
-      prompt = new_prompt
+        print(f"Current Prompt: {original_prompt}")
+        print(f"Average score: {avg_score}")
+        print(f"New Prompt: {new_prompt}")
+        print("--------------------\n")
 
-  print("done")
+        prompt = new_prompt
+
+    print("done")
