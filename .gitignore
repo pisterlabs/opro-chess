@@ -1,3 +1,6 @@
+# data
+*.json
+
 # code workspaces
 *.code-workspace
 

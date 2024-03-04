@@ -24,13 +24,22 @@ class ChessGame:
 
         return info["score"].pov(not analyze_board.turn).score(mate_score=1000000)
 
-    def is_valid(self, move_uci) -> bool:
-        move = chess.Move.from_uci(move_uci)
+    def is_valid(self, move_str, san=False) -> bool:
+        if san:
+            try:
+                move = self.board.parse_san(move_str)
+            except:
+                return False
+        else:
+            move = chess.Move.from_uci(move_str)
 
         return move in self.board.legal_moves
 
-    def play_move(self, move_uci, show=False) -> None:
-        move = chess.Move.from_uci(move_uci)
+    def play_move(self, move_str, show=False, san=False) -> None:
+        if san:
+            move = self.board.parse_san(move_str)
+        else:
+            move = chess.Move.from_uci(move_str)
 
         self.board.push(move)
 
