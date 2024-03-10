@@ -57,22 +57,7 @@ def predict_move_openai(input_prompt, moves_till_now, legal_moves, llm, num):
 
     # print("move responses: ", responses)
 
-    # uci_pattern = r"\b[a-h][1-8][a-h][1-8][nbrq]?\b"
     san_pattern = r"\b(?:[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8][+#]?|O-O(?:-O)?|0-0(?:-0)?)\b"
-
-    # return_ucis = []
-
-    # for resp in responses:
-    #     uci_matches = re.findall(uci_pattern, resp)
-
-    #     if uci_matches:
-    #         first_uci_match = uci_matches[0]
-    #         return_ucis.append(first_uci_match)
-    #     else:
-    #         # print("No UCI match found")
-    #         return_ucis.append("0000")
-
-    # return return_ucis
 
     return_sans = []
 
@@ -89,10 +74,11 @@ def predict_move_openai(input_prompt, moves_till_now, legal_moves, llm, num):
     return return_sans
 
 
-def get_prompt_openai(prompt_score_list, llm):
+def get_prompt_openai(prompt_score_list, example_data, llm):
     prompt_list = ""
+    examples = ""
 
-    for idx, prompts in enumerate(prompt_score_list[:-6:-1]):
+    for idx, prompts in enumerate(prompt_score_list):
         prompt_list += (
             "\nPrompt "
             + str(idx + 1)
@@ -103,9 +89,20 @@ def get_prompt_openai(prompt_score_list, llm):
             + "\n"
         )
 
+    for idx, example in enumerate(example_data):
+        examples += (
+            "\nMoves played till now: "
+            + example[0]
+            + "\nLegal moves: "
+            + example[1]
+            + "\nBest move: "
+            + example[2]
+            + "\n"
+        )
+
     # https://arxiv.org/pdf/2309.03409.pdf
     prompt = f"""Your task is to generate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. Below are some prompts to play Chess and the score the prompt achieved.
-  {prompt_list}\nGenerate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. the prompt should begin with "Prompt:" and should not include anything else.
+  {prompt_list}\nBelow are some examples of the input and the best answer. \n{examples} \nGenerate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. the prompt should begin with "Prompt:" and should not include anything else.
   """
 
     # print(prompt)
@@ -137,12 +134,15 @@ if __name__ == "__main__":
     prompt = "Given the moves played till now and a list of legal moves, select and return only the next best move from the given list of legal moves in SAN format and nothing else."
 
     show_interval = 1000
-    steps = 2
+    steps = 3
     total_games = 2
-    batch = 2
+    batch = 1
     num = 5
 
     for step in range(steps):
+        example_data = []
+        total_score = 0
+
         for game_idx in range(total_games):
             fen = data["fens"][game_idx]
             moves_till_now = data["moves"][game_idx] + "."
@@ -152,13 +152,6 @@ if __name__ == "__main__":
             print("fen:", game.get_board().fen())
             print()
 
-            total_score = 0
-
-            # legal_moves = (
-            #     "["
-            #     + ", ".join([move.uci() for move in game.get_board().legal_moves])
-            #     + "]"
-            # )
             legal_moves = (
                 "["
                 + ", ".join(
@@ -183,7 +176,7 @@ if __name__ == "__main__":
                     print("move:", move)
 
                     if not game.is_valid(move, san=True):
-                        total_score += -10000000
+                        total_score += -5000
                         continue
 
                     # Show the board at these intervals, wait for input to continue
@@ -198,17 +191,21 @@ if __name__ == "__main__":
 
                     game.get_board().pop()
 
+            best_move = game.get_best_move()
+            example_data.append([moves_till_now, legal_moves, best_move])
+
         avg_score = total_score / (total_games * batch * num)
 
         # get new prompt from LLM using prompt_score_list
 
         prompt_score_list.append([prompt, avg_score])
 
-        if len(prompt_score_list) > 5:
-            prompt_score_list = prompt_score_list[-5:]
+        prompt_score_list = prompt_score_list[-5:]
+
+        example_data = example_data[-5:]
 
         # new_prompt = "Given a FEN string return the next best chess move in UCI format"
-        new_prompt = get_prompt_openai(prompt_score_list, openai_llm)
+        new_prompt = get_prompt_openai(prompt_score_list, example_data, openai_llm)
 
         print(f"Current Prompt: {prompt}")
         print(f"Average score: {avg_score}")

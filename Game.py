@@ -22,7 +22,13 @@ class ChessGame:
         analyze_board = chess.Board(self.board.fen())
         info = self.engine.analyse(analyze_board, chess.engine.Limit(time=0.2))
 
-        return info["score"].pov(not analyze_board.turn).score(mate_score=1000000)
+        return info["score"].pov(not analyze_board.turn).score(mate_score=5000)
+    
+    def get_best_move(self) -> str:
+        analyze_board = chess.Board(self.board.fen())
+        result = self.engine.play(analyze_board, chess.engine.Limit(time=0.2))
+
+        return self.board.san(result.move)
 
     def is_valid(self, move_str, san=False) -> bool:
         if san:
