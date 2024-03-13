@@ -7,7 +7,7 @@ import random
 class ChessGame:
     def __init__(self, starting_fen=None) -> None:
         self.engine = chess.engine.SimpleEngine.popen_uci(
-            r"/opt/homebrew/bin/stockfish"
+            r"/usr/games/stockfish"
         )
 
         if starting_fen:
@@ -60,3 +60,6 @@ class ChessGame:
                     ):
                         display.pygame.quit()
                         return
+                    
+    def close(self) -> None:
+        self.engine.quit()

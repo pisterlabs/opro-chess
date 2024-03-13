@@ -122,24 +122,17 @@ def get_prompt_openai(prompt_score_list, example_data, llm):
     return return_str
 
 
-if __name__ == "__main__":
-    data = json.loads(open("PGNs/data.json", "r").read())
-
-    cohere_llm, openai_llm = init_llm()
-
+def run(show_interval, steps, total_games, batch, num, openai_llm, data):
     # prompt list, only include recent 5 prompts and scores
     prompt_score_list = []
+
+    # Output String to replace print statements
+    output_str = ""
 
     # initial prompt
     prompt = "Given the moves played till now and a list of legal moves, select and return only the next best move from the given list of legal moves in SAN format and nothing else."
 
-    show_interval = 1000
-    steps = 3
-    total_games = 2
-    batch = 1
-    num = 5
-
-    for step in range(steps):
+    for _ in range(steps):
         example_data = []
         total_score = 0
 
@@ -147,10 +140,9 @@ if __name__ == "__main__":
             fen = data["fens"][game_idx]
             moves_till_now = data["moves"][game_idx] + "."
 
+            # Loading game state from FEN
             game = ChessGame(fen)
-
-            print("fen:", game.get_board().fen())
-            print()
+            output_str += f"fen: {game.get_board().fen()}\n\n"
 
             legal_moves = (
                 "["
@@ -173,7 +165,7 @@ if __name__ == "__main__":
                 )
 
                 for move in moves:
-                    print("move:", move)
+                    output_str += f"move: {move}\n"
 
                     if not game.is_valid(move, san=True):
                         total_score += -5000
@@ -193,6 +185,7 @@ if __name__ == "__main__":
 
             best_move = game.get_best_move()
             example_data.append([moves_till_now, legal_moves, best_move])
+            game.close()
 
         avg_score = total_score / (total_games * batch * num)
 
@@ -207,11 +200,26 @@ if __name__ == "__main__":
         # new_prompt = "Given a FEN string return the next best chess move in UCI format"
         new_prompt = get_prompt_openai(prompt_score_list, example_data, openai_llm)
 
-        print(f"Current Prompt: {prompt}")
-        print(f"Average score: {avg_score}")
-        print(f"New Prompt: {new_prompt}")
-        print("--------------------\n")
+        output_str += f"Current Prompt: {prompt}\n"
+        output_str += f"Average score: {avg_score}\n"
+        output_str += f"New Prompt: {new_prompt}\n"
+        output_str += "--------------------\n"
 
         prompt = new_prompt
 
-    print("done")
+    output_str += "done"
+    return output_str, avg_score
+
+if __name__ == "__main__":
+    data = json.loads(open("PGNs/data.json", "r").read())
+
+    cohere_llm, openai_llm = init_llm()
+
+    show_interval = 10000
+    steps = 3
+    total_games = 2
+    batch = 1
+    num = 5
+
+    output_str, avg_score = run(show_interval, steps, total_games, batch, num, openai_llm, data)
+    print(output_str, avg_score)
