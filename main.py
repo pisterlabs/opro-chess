@@ -6,14 +6,16 @@ from dotenv import load_dotenv
 import re
 import cohere
 from openai import OpenAI
-
+import google.generativeai as genai
+import time
 
 def init_llm():
     load_dotenv()
     cohere_llm = cohere.Client(api_key=os.getenv("COHERE_API_KEY"))
     openai_llm = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    genai_llm = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-    return cohere_llm, openai_llm
+    return cohere_llm, openai_llm, genai_llm
 
 
 def predict_move_cohere(input_prompt, fen_string, llm):
@@ -48,6 +50,7 @@ def predict_move_openai(input_prompt, moves_till_now, legal_moves, llm, num):
             {"role": "system", "content": prompt},
         ],
         n=num,
+        temperature=1.0
     )
 
     responses = []
@@ -122,7 +125,7 @@ def get_prompt_openai(prompt_score_list, example_data, llm):
     return return_str
 
 
-def run(show_interval, steps, total_games, batch, num, openai_llm, data):
+def run(steps, total_games, num, openai_llm, data, show_interval=1000, batch=1):
     # prompt list, only include recent 5 prompts and scores
     prompt_score_list = []
 
@@ -213,13 +216,16 @@ def run(show_interval, steps, total_games, batch, num, openai_llm, data):
 if __name__ == "__main__":
     data = json.loads(open("PGNs/data.json", "r").read())
 
-    cohere_llm, openai_llm = init_llm()
+    cohere_llm, openai_llm, gemini_llm = init_llm()
 
-    show_interval = 10000
+    show_interval = 1000
+    batch = 1
     steps = 3
     total_games = 2
-    batch = 1
     num = 5
-
-    output_str, avg_score = run(show_interval, steps, total_games, batch, num, openai_llm, data)
-    print(output_str, avg_score)
+    
+    # Run the game
+    start_time = time.time()
+    output_str, avg_score = run(steps, total_games, num, openai_llm, data)  # batch = 1, show_interval = 1000 by default
+    end_time = time.time()
+    print(output_str, avg_score, end_time-start_time)
