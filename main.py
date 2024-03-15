@@ -142,9 +142,10 @@ def predict_move_gemini(input_prompt, moves_till_now, legal_moves, llm, num):
         res = None
         while True:
             try:
-                res = gemini_llm.generate_content(prompt).candidates[0].content.parts[0].text
+                res = llm.generate_content(prompt).candidates[0].content.parts[0].text
                 break
-            except:
+            except Exception as e:
+                print(e)
                 continue
         responses.add(res)
 
@@ -202,9 +203,10 @@ def get_prompt_gemini(prompt_score_list, example_data, llm):
     response = None
     while True:
         try:
-            response = gemini_llm.generate_content(prompt).candidates[0].content.parts[0].text
+            response = llm.generate_content(prompt).candidates[0].content.parts[0].text
             break
-        except:
+        except Exception as e:
+            print(e)
             continue
 
     return_str = [x for x in response.split(":")[::-1] if len(x) > 4][0]
@@ -224,7 +226,7 @@ def run(steps, total_games, num, llm, data, show_interval=1000, batch=1):
     # initial prompt
     prompt = "Given the moves played till now and a list of legal moves, select and return only the next best move from the given list of legal moves in SAN format and nothing else."
 
-    for _ in tqdm(range(steps)):
+    for step in range(steps):
         example_data = []
         total_score = 0
 
@@ -278,6 +280,7 @@ def run(steps, total_games, num, llm, data, show_interval=1000, batch=1):
             best_move = game.get_best_move()
             example_data.append([moves_till_now, legal_moves, best_move])
             game.close()
+            print(f"{game_idx + 1}/{total_games} games. {step}/{steps} steps.")
 
         avg_score = total_score / (total_games * batch * num)
 
