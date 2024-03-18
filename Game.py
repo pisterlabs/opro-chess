@@ -60,6 +60,10 @@ class ChessGame:
                     ):
                         display.pygame.quit()
                         return
-                    
+    
+    def set_board_to_fen(self, new_fen: str) -> None:
+        """Sets the board to a new position specified by a FEN string."""
+        self.board.set_fen(new_fen)
+
     def close(self) -> None:
         self.engine.quit()

@@ -248,6 +248,9 @@ def run(steps, total_games, num, llm, data, show_interval=1000, batch=1):
                 )
                 + "]"
             )
+            print(f"Fen: {fen}")
+            print(f"Moves till now: {moves_till_now}")
+            print(f"Legal Moves: {legal_moves}")
 
             for idx in range(batch):
                 # predict move with an LLM. Validate move, then play it
@@ -257,6 +260,7 @@ def run(steps, total_games, num, llm, data, show_interval=1000, batch=1):
                 moves = predict_move_gemini(
                     prompt, moves_till_now, legal_moves, llm, num
                 )
+                print(f"Predicted moves: {moves}")
 
                 for move in moves:
                     output_str += f"move: {move}\n"
@@ -299,6 +303,10 @@ def run(steps, total_games, num, llm, data, show_interval=1000, batch=1):
         output_str += f"Average score: {avg_score}\n"
         output_str += f"New Prompt: {new_prompt}\n"
         output_str += "--------------------\n"
+        print(f"Current Prompt: {prompt}")
+        print(f"Average score: {avg_score}")
+        print(f"New Prompt: {new_prompt}")
+        print("--------------------")
 
         prompt = new_prompt
 
@@ -324,4 +332,5 @@ if __name__ == "__main__":
     start_time = time.time()
     output_str, avg_score = run(steps, total_games, num, gemini_llm, data)  # batch = 1, show_interval = 1000 by default
     end_time = time.time()
-    print(output_str, avg_score, end_time-start_time)
+    # print(output_str, avg_score, end_time-start_time)
+    print(end_time-start_time)
