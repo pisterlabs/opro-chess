@@ -1,4 +1,4 @@
-from Game import ChessGame
+from Game import ChessGame, Blackjack
 import json
 import os
 import random
@@ -73,8 +73,32 @@ def predict_move_openai(input_prompt, moves_till_now, legal_moves, llm, num):
 
     return return_sans
 
+def predict_move_openai_blackjack(input_prompt, player_dealer_info, llm):
+    prompt = f"{input_prompt}\n{'Player and Dealer Card Info:'} {player_dealer_info} {'Legal moves: [hit, stand]'}"
 
-def get_prompt_openai(prompt_score_list, example_data, llm):
+    print(prompt)
+
+    completion = llm.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": prompt},
+        ],
+        n=1,
+    )
+
+    responses = []
+
+    for choice in completion.choices:
+        responses.append(choice.message.content)
+
+    # print("move responses: ", responses)
+
+    if "hit" in responses[0].lower():
+        return "hit"
+    else:    
+        return "stand"
+
+def get_prompt_openai(prompt_score_list, example_data, llm, game_name):
     prompt_list = ""
     examples = ""
 
@@ -101,7 +125,7 @@ def get_prompt_openai(prompt_score_list, example_data, llm):
         )
 
     # https://arxiv.org/pdf/2309.03409.pdf
-    prompt = f"""Your task is to generate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. Below are some prompts to play Chess and the score the prompt achieved.
+    prompt = f"""Your task is to generate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. Below are some prompts to play {game_name} and the score the prompt achieved.
   {prompt_list}\nBelow are some examples of the input and the best answer. \n{examples} \nGenerate a prompt that will achieve a higher score than the given prompts. A higher score means a better move prediction. the prompt should begin with "Prompt:" and should not include anything else.
   """
 
@@ -134,8 +158,8 @@ if __name__ == "__main__":
     prompt = "Given the moves played till now and a list of legal moves, select and return only the next best move from the given list of legal moves in SAN format and nothing else."
 
     show_interval = 1000
-    steps = 3
-    total_games = 2
+    steps = 1
+    total_games = 1
     batch = 1
     num = 5
 
@@ -144,55 +168,79 @@ if __name__ == "__main__":
         total_score = 0
 
         for game_idx in range(total_games):
-            fen = data["fens"][game_idx]
-            moves_till_now = data["moves"][game_idx] + "."
+            # fen = data["fens"][game_idx]
+            # moves_till_now = data["moves"][game_idx] + "."
 
-            game = ChessGame(fen)
+            # game = ChessGame(fen)
 
-            print("fen:", game.get_board().fen())
-            print()
+            # print("fen:", game.get_board().fen())
+            # print()
 
-            legal_moves = (
-                "["
-                + ", ".join(
-                    [
-                        game.get_board().san(move)
-                        for move in game.get_board().legal_moves
-                    ]
-                )
-                + "]"
-            )
+            # legal_moves = (
+            #     "["
+            #     + ", ".join(
+            #         [
+            #             game.get_board().san(move)
+            #             for move in game.get_board().legal_moves
+            #         ]
+            #     )
+            #     + "]"
+            # )
 
             for idx in range(batch):
                 # predict move with an LLM. Validate move, then play it
 
                 # move = random.choice(list(game.get_board().legal_moves)).uci()
                 # move = predict_move_cohere(prompt, fen, cohere_llm)
-                moves = predict_move_openai(
-                    prompt, moves_till_now, legal_moves, openai_llm, num
-                )
+                # moves = predict_move_openai(
+                #     prompt, moves_till_now, legal_moves, openai_llm, num
+                # )
 
-                for move in moves:
-                    print("move:", move)
+                # for move in moves:
+                #     print("move:", move)
 
-                    if not game.is_valid(move, san=True):
-                        total_score += -5000
-                        continue
+                #     if not game.is_valid(move, san=True):
+                #         total_score += -5000
+                #         continue
 
-                    # Show the board at these intervals, wait for input to continue
-                    if (idx + 1) % show_interval == 0:
-                        game.play_move(move, show=True, san=True)
+                #     # Show the board at these intervals, wait for input to continue
+                #     if (idx + 1) % show_interval == 0:
+                #         game.play_move(move, show=True, san=True)
 
-                    # Play these moves quickly without showing the board
-                    else:
-                        game.play_move(move, san=True)
+                #     # Play these moves quickly without showing the board
+                #     else:
+                #         game.play_move(move, san=True)
 
-                    total_score += game.get_score()
+                #     total_score += game.get_score()
 
-                    game.get_board().pop()
+                #     game.get_board().pop()
 
-            best_move = game.get_best_move()
-            example_data.append([moves_till_now, legal_moves, best_move])
+                player = ("Player", 1000)
+                game = Blackjack(player)
+                table = game.get_table()
+                dealer = table.dealer
+                
+                for player in table: # singluar player
+                    while not (player.bust or player.stand):
+                        # predict move with an LLM. Validate move, then play it
+                        
+                        move = predict_move_openai_blackjack("Return the next best move in Blackjack for the player given the player's and dealer's card info and legal moves", game.print_cards(dealer) + " " + game.print_cards(player), openai_llm)
+
+                        print("move:", move)
+
+                        # print("--- Info ---")
+                        # game.print_cards(dealer)
+                        # game.print_cards(player)
+                        # print("--- End of Info ---")
+
+                        game.play_round(table, player, move)
+
+                print(game.show_result(table))
+
+                # move = game.get_best_move()
+
+            # best_move = game.get_best_move()
+            # example_data.append([moves_till_now, legal_moves, best_move])
 
         avg_score = total_score / (total_games * batch * num)
 
@@ -205,7 +253,7 @@ if __name__ == "__main__":
         example_data = example_data[-5:]
 
         # new_prompt = "Given a FEN string return the next best chess move in UCI format"
-        new_prompt = get_prompt_openai(prompt_score_list, example_data, openai_llm)
+        new_prompt = get_prompt_openai(prompt_score_list, example_data, openai_llm, "Chess")
 
         print(f"Current Prompt: {prompt}")
         print(f"Average score: {avg_score}")
