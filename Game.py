@@ -20,13 +20,13 @@ class ChessGame:
 
     def get_score(self) -> int:
         analyze_board = chess.Board(self.board.fen())
-        info = self.engine.analyse(analyze_board, chess.engine.Limit(time=0.2))
+        info = self.engine.analyse(analyze_board, chess.engine.Limit(time=1))
 
         return info["score"].pov(not analyze_board.turn).score(mate_score=5000)
     
     def get_best_move(self) -> str:
         analyze_board = chess.Board(self.board.fen())
-        result = self.engine.play(analyze_board, chess.engine.Limit(time=0.2))
+        result = self.engine.play(analyze_board, chess.engine.Limit(time=1))
 
         return self.board.san(result.move)
 
