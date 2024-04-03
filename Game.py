@@ -179,13 +179,16 @@ class Blackjack:
         # action = int(input("\nHit(1), Stand(2): "))
         if action == "hit":
             player.play_hit()
-            self.print_cards(player)
         elif action == "stand":
             player.play_stand()
 
 
     def show_result(self, table):
-        print(f"\nDealer has {table.dealer.total}")
+        # print("--------------------")
+        # print(f"\nDealer has {table.dealer.total}")
+        # for player in table:
+        #     print(f"{self.print_cards(player)}")
+
         for player in table:
             # result = player.result
             # if result > 0:

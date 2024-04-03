@@ -1,0 +1,91 @@
+Step: 0
+Average score: 0.2
+Prompt: Return the next best move for the player given the player's and dealer's card info and legal moves
+--------------------
+
+
+Step: 1
+Average score: -0.2
+Prompt: Based on the player's and dealer's card info and the legal moves available, predict the optimal move for the player in a game of Blackjack
+--------------------
+
+
+Step: 2
+Average score: 0.6
+Prompt: Provide a recommendation for the player's next move in Blackjack based on their current hand (including cards and total) and the dealer's visible card, considering the available legal moves.
+--------------------
+
+
+Step: 3
+Average score: -1.0
+Prompt: Based on the player's current hand (including cards and total) and the visible dealer's card, advise on the most optimal move to make in a game of Blackjack from the available legal moves.
+--------------------
+
+
+Step: 4
+Average score: -0.2
+Prompt: Given the player's hand (including cards and total) and the visible dealer's card, along with the legal moves (hit, stand, double down, split), recommend the best move for the player in a game of Blackjack.
+--------------------
+
+
+Step: 5
+Average score: -0.6
+Prompt: Considering the player's current hand with total value, the visible dealer's card, and the available legal moves (hit, stand), analyze and recommend the optimal move to make in a game of Blackjack.
+--------------------
+
+
+Step: 6
+Average score: -0.2
+Prompt: Given the player's hand with the total value and the visible dealer's card, recommend the optimal move to maximize the player's odds of winning in Blackjack, considering the available legal moves (hit, stand, double down, split).
+--------------------
+
+
+Step: 7
+Average score: -0.6
+Prompt: Based on the player's current hand and the visible dealer's card, recommend the optimal move to maximize the player's chances of winning in Blackjack, considering all available legal moves.
+--------------------
+
+
+Step: 8
+Average score: -0.6
+Prompt: Considering the player's current hand totaling 16 and the visible dealer's card as a King, provide the most strategic move to increase the player's likelihood of winning in Blackjack, incorporating all available legal moves.
+--------------------
+
+
+Step: 9
+Average score: 0.6
+Prompt: Considering the player's current hand totaling 16 and the visible dealer's card as a Queen, provide the most strategic move to increase the player's likelihood of winning in Blackjack, taking into account all available legal moves.
+--------------------
+
+
+Step: 10
+Average score: -0.6
+Prompt: Given the player's current hand with the total value and the visible dealer's card, recommend the best move that maximizes the player's probability of winning in Blackjack, considering the full range of available actions including hit, stand, double down, and split.
+--------------------
+
+
+Step: 11
+Average score: -0.2
+Prompt: Given the player's hand with the total value and the visible dealer's card, recommend the statistically optimal move to enhance the player's winning odds in Blackjack, taking into account all available legal moves (hit, stand, double down, split).
+--------------------
+
+
+Step: 12
+Average score: 0.2
+Prompt: Given the player's current hand and the visible dealer's card, suggest the optimal move to increase the player's chances of beating the dealer in Blackjack by considering all possible actions including hit, stand, double down, and split.
+--------------------
+
+
+Step: 13
+Average score: -0.6
+Prompt: Given the player's hand totaling 15 and the visible dealer's card as a 9 in a game of Blackjack, recommend the optimal move that statistically improves the player's chances of winning, considering all possible actions like hit, stand, double down, and split.
+--------------------
+
+
+Step: 14
+Average score: -0.6
+Prompt: Based on the player's current hand totaling 15 and the visible dealer's card as a 10, suggest the move that statistically optimizes the player's chances of winning in Blackjack, considering all possible actions like hit, stand, double down, and split.
+--------------------
+
+
+done

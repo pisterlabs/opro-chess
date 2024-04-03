@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import re
 import cohere
 from openai import OpenAI
+import matplotlib.pyplot as plt
 
 
 def init_llm():
@@ -76,7 +77,7 @@ def predict_move_openai(input_prompt, moves_till_now, legal_moves, llm, num):
 def predict_move_openai_blackjack(input_prompt, player_dealer_info, llm):
     prompt = f"{input_prompt}\n{'Player and Dealer Card Info:'} {player_dealer_info} {'Legal moves: [hit, stand]'}"
 
-    print(prompt)
+    # print(prompt)
 
     completion = llm.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -115,7 +116,7 @@ def get_prompt_openai(prompt_score_list, example_data, llm, game_name):
 
     for idx, example in enumerate(example_data):
         examples += (
-            "\nMoves played till now: "
+            "\nInfo till now: "
             + example[0]
             + "\nLegal moves: "
             + example[1]
@@ -139,7 +140,7 @@ def get_prompt_openai(prompt_score_list, example_data, llm, game_name):
     )
 
     response = completion.choices[0].message.content
-    return_str = [x for x in response.split(":")[::-1] if len(x) > 4][0]
+    return_str = response.split("Prompt:")[-1].strip()
 
     # print("new prompt response: ", return_str)
 
@@ -155,16 +156,21 @@ if __name__ == "__main__":
     prompt_score_list = []
 
     # initial prompt
-    prompt = "Given the moves played till now and a list of legal moves, select and return only the next best move from the given list of legal moves in SAN format and nothing else."
+    # prompt = "Given the moves played till now and a list of legal moves, select and return only the next best move from the given list of legal moves in SAN format and nothing else."
+    prompt = "Return the next best move for the player given the player's and dealer's card info and legal moves"
 
     show_interval = 1000
-    steps = 1
-    total_games = 1
+    steps = 15
+    total_games = 5
     batch = 1
     num = 5
 
+    xs = []
+    ys = []
+
+    example_data = []
+
     for step in range(steps):
-        example_data = []
         total_score = 0
 
         for game_idx in range(total_games):
@@ -219,30 +225,44 @@ if __name__ == "__main__":
                 game = Blackjack(player)
                 table = game.get_table()
                 dealer = table.dealer
+                move_list = []
                 
                 for player in table: # singluar player
+                    firstMove = True
+
                     while not (player.bust or player.stand):
                         # predict move with an LLM. Validate move, then play it
                         
-                        move = predict_move_openai_blackjack("Return the next best move in Blackjack for the player given the player's and dealer's card info and legal moves", game.print_cards(dealer) + " " + game.print_cards(player), openai_llm)
+                        move = predict_move_openai_blackjack(prompt, game.print_cards(dealer) + " " + game.print_cards(player), openai_llm)
 
-                        print("move:", move)
+                        # print("move:", move)
+                        move_list.append(move)
 
                         # print("--- Info ---")
-                        # game.print_cards(dealer)
-                        # game.print_cards(player)
+                        # print(game.print_cards(dealer) + " " + game.print_cards(player))
                         # print("--- End of Info ---")
+
+                        if firstMove:
+                            example_data.append([game.print_cards(dealer) + " " + game.print_cards(player), "[hit, stand]", move])
 
                         game.play_round(table, player, move)
 
-                print(game.show_result(table))
+                        firstMove = False
+
+                # print("move list:", move_list)
+                score = game.show_result(table)
+
+                total_score += score
+
+                if score < 0:
+                    example_data.pop()
 
                 # move = game.get_best_move()
 
             # best_move = game.get_best_move()
             # example_data.append([moves_till_now, legal_moves, best_move])
 
-        avg_score = total_score / (total_games * batch * num)
+        avg_score = total_score / ((total_games * batch) * 1000)
 
         # get new prompt from LLM using prompt_score_list
 
@@ -253,13 +273,25 @@ if __name__ == "__main__":
         example_data = example_data[-5:]
 
         # new_prompt = "Given a FEN string return the next best chess move in UCI format"
-        new_prompt = get_prompt_openai(prompt_score_list, example_data, openai_llm, "Chess")
+        new_prompt = get_prompt_openai(prompt_score_list, example_data, openai_llm, "Blackjack")
 
-        print(f"Current Prompt: {prompt}")
+        # print(f"Current Prompt: {prompt}")
+        # print(f"Average score: {avg_score}")
+        # print(f"New Prompt: {new_prompt}")
+        # print("--------------------\n")
+
+        xs.append(step)
+        ys.append(avg_score)
+
+        print(f"Step: {step}")
         print(f"Average score: {avg_score}")
-        print(f"New Prompt: {new_prompt}")
+        print(f"Prompt: {prompt}")
         print("--------------------\n")
+        print()
 
         prompt = new_prompt
+
+    plt.plot(xs, ys)
+    plt.show()
 
     print("done")
